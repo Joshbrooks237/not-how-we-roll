@@ -1,15 +1,8 @@
 # FLAT CIRCLE
 
-> *"Time is a flat circle. Everything we've ever done or will do, we're gonna do over and over and over again."*
-> — Rust Cohle, Homicide Detective, Louisiana State CID
+**Flat Circle is an adaptive security proxy that combines deterministic enforcement, behavioral modeling, and deception routing to protect any HTTP application without modification.**
 
----
-
-I'd been thinking about it since Shreveport. The way a pattern repeats itself. The way a man — or a machine — runs the same loop without ever knowing the loop is what it is. You think you're moving forward. But you been here before. You'll be here again. The program doesn't know it's the program. It just runs.
-
-That's what they do. The scanners. The bots. The script kiddies and the nation-state actors in their government buildings with their coffee and their morning briefings. They run the same enumeration. The same credential pull. The same POST to `/admin`. They've been doing it since before they knew they were doing it. They will keep doing it after everything they think they found turns out to be nothing.
-
-**Flat Circle is what happens when the architecture understands that.**
+Point it at your origin. Point your DNS at it. Done. No code changes. No SDK required. No access to the wrapped application needed. It works on Node.js, Python, Ruby, Go, Java, PHP, .NET, WordPress, and anything else that speaks HTTP.
 
 ---
 
@@ -45,14 +38,329 @@ ANTHROPIC_API_KEY=sk-ant-... \
 docker compose up
 ```
 
-**What runs where:**
-
 | Port | Service |
 |------|---------|
 | `:8080` | Flat Circle Proxy — your new public-facing address |
-| `:3001` | Dashboard — CISO-facing, not attacker-facing |
+| `:3001` | Dashboard — observability surface, not attacker-facing |
 
-Everything behind `:8080` is the proxy. Point your load balancer, your Cloudflare origin, your Nginx upstream, your Route 53 record — any of them — at `:8080`. The application on the other side never changes.
+---
+
+## Attack walkthrough
+
+One attacker. End to end.
+
+```
+1.  Attacker sends automated scan to /admin
+
+2.  Edge Wrapper (Layer 13 / Universal Reverse Proxy) receives the request.
+    The origin application never sees it.
+
+3.  Route recognized as active honeypot territory by Layer 2.
+    Mod 7 clock is in the active window. The decoy is live.
+
+4.  Request routed to an AI-generated honeypot environment that matches
+    whatever stack the scanner fingerprinted — PHP responses if it
+    expected PHP, Spring if it expected Spring.
+
+5.  Behavioral model (Layer 4) flags: timing coefficient of variation < 15%,
+    low request variation, known scanner user-agent pattern.
+    Anomaly score exceeds contract threshold.
+
+6.  Client integrity check (Layer 19): JA3 TLS fingerprint matches
+    headless Chromium library signature, not a real browser.
+    Client integrity score: LOW.
+
+7.  Session shadowed (Layer 9): a clone of the session is created.
+    All further interaction is redirected to the shadow environment.
+    The real application and its data remain untouched.
+
+8.  Recursive honeypot depth increases (Layer 8): each subsequent
+    request from the attacker generates a more convincing version of
+    the thing they appear to be looking for. There is no bottom.
+
+9.  Tarpit engaged (Layer 14): responses throttled to single-byte
+    delivery over maximum keepalive window. The attacker's connection
+    stays open waiting for a response that is technically arriving.
+
+10. Every event logged to the Merkle audit chain (Layers 3, 11).
+    Root hash updated. Leaf count incremented.
+
+11. Canary token planted inside the decoy response. If the attacker
+    uses the "found" credential anywhere — internal test, paste site,
+    downstream probe — the canary fires and the exfiltration path is traced.
+
+12. Session closes. Layer 22 compiles the incident package:
+    full session timeline, classification narrative, client integrity score,
+    cryptographic proof chain from root-at-open to root-at-close.
+    Package signed. Exported to forensic target. Chain of custody intact.
+```
+
+The attacker received nothing real. The attacker spent their connection budget on the swamp. The record exists.
+
+---
+
+## What Flat Circle is not
+
+```
+NOT a WAF replacement
+    WAFs block by signature. Flat Circle operates by deception, behavioral
+    modeling, and session isolation. Use both if you want both.
+
+NOT a zero-trust architecture
+    Zero-trust governs identity and access inside your perimeter.
+    Flat Circle governs the perimeter and the attacker's experience of it.
+    They solve adjacent problems.
+
+NOT a compliance certification tool
+    Flat Circle generates audit-ready forensic exports and Merkle-backed
+    event records. It does not make you SOC 2, PCI-DSS, or HIPAA compliant.
+    It produces evidence that supports compliance programs.
+
+NOT a guaranteed breach prevention system
+    No system prevents all breaches. Flat Circle raises the cost of attack,
+    increases detection surface, and ensures that what was attempted is
+    recorded and provable. Prevention is a goal. The record is a guarantee.
+
+NOT effective against physical host compromise
+    If an attacker has shell access to the machine running Flat Circle,
+    Flat Circle cannot protect you. It is a software layer, not a hardware
+    security boundary.
+
+NOT a substitute for secure development practices
+    Flat Circle wraps your application. It does not fix SQL injection,
+    insecure deserialization, or broken authentication inside your code.
+```
+
+---
+
+## Threat model
+
+**Attackers assumed:**
+
+| Attacker class | Description |
+|----------------|-------------|
+| Automated vulnerability scanners | High-volume, low-variation, known fingerprints |
+| Credential stuffing bots | Enumeration of username/password combinations at scale |
+| Targeted API exploitation | Deliberate probing of endpoints, authenticated and unauthenticated |
+| Insider credential misuse | Legitimate credentials used outside normal behavioral scope |
+| Supply chain attackers | Compromise via dependency injection or lockfile tampering |
+| DNS hijackers | Subdomain takeover via deprovisioned cloud resources |
+| AI prompt injection actors | Crafted HTTP payloads designed to manipulate Flat Circle's AI layers |
+
+**Attackers NOT assumed:**
+
+- Physical host compromise or co-location attacks
+- Kernel-level rootkits or hypervisor-layer attacks
+- Compromise of the Flat Circle proxy process itself
+- Legal compulsion to produce decryption material
+- Side-channel attacks against cryptographic operations
+
+**Assets protected:**
+
+- HTTP API endpoints and web routes
+- Session integrity and authentication state
+- Outbound data exfiltration paths (slow and fast)
+- Cryptographic audit trail integrity
+- AI provider pipeline integrity (prompt injection defense)
+- DNS surface of the protected application
+
+---
+
+## Subsystem architecture
+
+The twenty-two layers organize into six functional subsystems. Layers are the implementation units. Subsystems are the operational concepts.
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│  EDGE PROTECTION SUBSYSTEM                                            │
+│  Layers 1, 6, 13                                                      │
+│  Universal reverse proxy, request pipeline, stack fingerprint         │
+│  obfuscation. Entry and exit point for all traffic.                   │
+├───────────────────────────────────────────────────────────────────────┤
+│  DECEPTION SUBSYSTEM                                                  │
+│  Layers 2, 5, 7, 8, 10                                               │
+│  Honeypot mesh, temporal decoys, entropy injection, recursive depth,  │
+│  morphic route shifting. The attacker interacts with a constructed    │
+│  environment that does not exist.                                     │
+├───────────────────────────────────────────────────────────────────────┤
+│  BEHAVIORAL INTELLIGENCE SUBSYSTEM                                    │
+│  Layers 4, 9, 17, 19, 20                                             │
+│  Session anomaly detection, parallel session isolation, authenticated │
+│  behavioral contracts, client fingerprinting, exfiltration velocity.  │
+│  What the attacker does, not just what they send.                     │
+├───────────────────────────────────────────────────────────────────────┤
+│  INTEGRITY & AUDIT SUBSYSTEM                                          │
+│  Layers 3, 11, 15, 16, 22                                            │
+│  Merkle-backed canary tokens, session audit chain, dependency hash    │
+│  verification, secret redaction, forensic export and legal hold.      │
+│  The record that proves what happened.                                │
+├───────────────────────────────────────────────────────────────────────┤
+│  THREAT RESPONSE SUBSYSTEM                                            │
+│  Layers 14, 18                                                        │
+│  DDoS absorption, intelligent tarpit, upstream escalation, DNS        │
+│  surface monitoring and takeover detection.                           │
+├───────────────────────────────────────────────────────────────────────┤
+│  AI ORCHESTRATION SUBSYSTEM                                           │
+│  Layers 12, 21                                                        │
+│  Cross-installation campaign correlation, LLM routing and fallback,   │
+│  prompt injection defense wrapping every outbound AI call.            │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Deterministic and probabilistic controls
+
+**No AI component is required for core enforcement. AI augments detection and deception only.**
+
+### Deterministic (always-on, zero AI dependency)
+
+| Control | Layer | Behavior |
+|---------|-------|----------|
+| Canary token signing and verification | 3 | Cryptographic — no model involved |
+| Modulo 7 timing gates | 2, 5, 7, 10, 11 | Seeded from session fingerprint, fully deterministic |
+| Merkle audit logging | 3, 11, 22 | SHA-256 hash chain — no model involved |
+| Dependency hash verification | 15 | Lockfile hash diff — no model involved |
+| Entropy-based secret detection | 16 | Regex + Shannon entropy scoring — static fallback |
+| TLS/HTTP2 client fingerprinting | 19 | JA3 hash lookup against known signatures |
+| DNS resolution monitoring | 18 | DNS queries against known-good baseline |
+| Rate limiting and request validation | 1 | Rule-based, configurable thresholds |
+| Static honeypot and decoy generation | 2, 8 | Pre-generated template library |
+
+### Probabilistic (AI-assisted, with deterministic fallback)
+
+| Control | Layer | Fallback behavior without AI |
+|---------|-------|------------------------------|
+| Behavioral anomaly scoring | 4, 17 | Threshold rules on request rate and volume |
+| Attacker classification | 9 | Deterministic class lookup by fingerprint |
+| Decoy content generation | 2, 8 | Static template library by detected stack |
+| Context-aware secret redaction | 16 | Entropy threshold + regex patterns |
+| Exfiltration pattern analysis | 20 | Rolling sum with exponential decay function |
+| DNS infrastructure cross-referencing | 18 | Platform-specific takeover pattern list |
+| Compliance report narrative | 22 | Structured deterministic report without prose |
+
+---
+
+## Versioned defense map
+
+Flat Circle is designed to be adopted incrementally. Each version adds a capability tier without requiring the previous tier to be fully tuned.
+
+```
+v1 — Proxy + Audit Foundation
+  Layers: 1, 3, 11, 13
+  What it does: All traffic passes through the proxy. Canary tokens issued.
+  Merkle audit chain starts. Full forensic record from day one.
+  Value: Complete visibility and tamper-proof logging with no code changes.
+
+v2 — Deception Layer
+  Layers: 2, 5, 6, 7, 10
+  What it does: Honeypot mesh active. Temporal decoys. Entropy injection.
+  Syntactic mimicry. Morphic route cycling.
+  Value: Attackers begin interacting with constructed environments.
+  Every probe wastes attacker resources and generates signal.
+
+v3 — Behavioral Modeling
+  Layers: 4, 8, 9
+  What it does: Behavioral contracts established per session.
+  Recursive honeypot depth. Session shadowing.
+  Value: Sophisticated attackers are isolated without knowing it.
+  Threat classification feeds back into deception quality.
+
+v4 — Active Defense + Supply Chain
+  Layers: 12, 14, 15, 16, 17, 18
+  What it does: Collective intelligence. Tarpit and DDoS absorption.
+  Dependency verification. Secret sentinel. Authenticated anomaly detection.
+  DNS surface monitoring.
+  Value: Defense extends beyond the request path — supply chain,
+  DNS, insider threat, and volumetric attack surfaces covered.
+
+v5 — Signal Hardening
+  Layers: 19, 20, 21
+  What it does: Client integrity scoring. Exfiltration velocity monitoring.
+  AI input sanitization wrapping every model call.
+  Value: Low-signal attacks (slow exfiltration, bot traffic, prompt injection)
+  become detectable. The AI pipeline is protected from the attackers
+  who know there is an AI pipeline.
+
+v6 — Forensic Closure
+  Layer: 22
+  What it does: Real-time forensic streaming. Incident package compilation.
+  Compliance reports. Legal hold. Chain of custody verification.
+  Value: The record is complete, signed, and legally defensible.
+  Everything detected can now be proved.
+```
+
+---
+
+## Failure modes
+
+Engineers distrust systems that claim to be invincible. Flat Circle is not invincible. Here is what it does not do well and why.
+
+### Edge Protection Subsystem
+- Adds 1–3ms latency per request in normal operation. Under flood conditions with tarpit active, latency for clean traffic may increase.
+- WebSocket passthrough is not currently inspected. WebSocket connections are proxied transparently but not analyzed.
+
+### Deception Subsystem
+- AI-generated decoys may not perfectly match all obscure framework signatures. Static fallback templates cover common stacks.
+- Mod 7 rotation does not prevent an attacker who runs enumeration across multiple rotation windows. It raises the cost; it does not make enumeration impossible.
+
+### Behavioral Intelligence Subsystem
+- May misclassify legitimate low-volume users as anomalous during the learning window (approximately first 7 days of session history per identity).
+- Cosine distance thresholds require tuning per application. Default thresholds may produce false positives in applications with highly irregular legitimate usage patterns.
+- Authenticated anomaly detection (Layer 17) requires meaningful behavioral history per identity. New users have no baseline contract.
+
+### AI Orchestration Subsystem
+- AI providers can hallucinate classification labels. A nation-state actor may occasionally be classified as a script kiddie and vice versa. The static fallback is less precise but deterministic.
+- Prompt injection defense (Layer 21) is probabilistic. Novel injection techniques that have not been catalogued in the signature library may pass through.
+
+### Integrity & Audit Subsystem
+- The Merkle audit trail proves that a breach occurred and records what was attempted. It does not prevent the breach.
+- Forensic export (Layer 22) has a single point of failure at the export target. If the target is unreachable, events are buffered. Buffer overflow means events are lost. Monitor the forensic stream indicator.
+- Dependency verification (Layer 15) checks hashes at boot. Runtime package injection attacks that do not modify lockfiles are not detected.
+
+### Threat Response Subsystem
+- The tarpit (Layer 14) degrades response time for tarpitted connections. At very high flood volumes, legitimate traffic colocated with flood traffic on the same upstream network may see increased latency before flood traffic is fully isolated.
+- Upstream escalation to Cloudflare or AWS Shield requires pre-configuration. If not configured, the system fails open under flood conditions above local capacity: traffic continues to pass but is not escalated.
+
+---
+
+## The Dashboard
+
+An observability surface. The slime visualization is a rendering engine for structured security data — every ripple, pulse, and color shift corresponds to a documented event class.
+
+**Metrics exposed in real time:**
+
+| Signal | Description |
+|--------|-------------|
+| Anomaly score per session | Cosine distance from established behavioral baseline |
+| Active honeypot hits | Requests routed to decoy environments per interval |
+| Exfiltration velocity index | Cumulative data transfer per authenticated identity (rolling windows) |
+| Client integrity distribution | High / medium / low scoring across active sessions |
+| Merkle root + leaf count | Live audit chain state, updated at mod 7 boundaries |
+| Shadow session count + class | Active isolated sessions with threat classification |
+| AI injection attempts | Prompt injection detections per interval, distinct color channel |
+| Forensic export stream health | Streaming / buffered / unreachable |
+| Legal hold status | Active hold duration and frozen Merkle state indicator |
+
+**Visualization mapping:**
+
+```
+Slime surface color    → overall threat pressure (green → amber → red)
+Slime membrane pulse   → Merkle root update cycle
+Red/orange nodes       → active threat sessions (by classification)
+Amber slow-pulse nodes → tarpitted connections
+DNS constellation      → full DNS surface (green verified, amber unrecognized, red flagged)
+Client heat signature  → integrity distribution across active sessions
+Tide gauge (base)      → exfiltration velocity index (slow-rising, designed to be imperceptible)
+Forensic pulse (base)  → export stream health
+```
+
+The dashboard connects to the proxy's SSE stream at `/flat-circle/stream`. When the proxy is live, all signals are real. When no proxy is connected, the dashboard runs a simulation on the same data model.
+
+```bash
+cd packages/dashboard && pnpm dev
+# → http://localhost:3001
+```
 
 ---
 
@@ -74,77 +382,201 @@ Any HTTP or HTTPS server. Language and framework are irrelevant.
 | WordPress | `http://localhost:80` |
 | Any legacy HTTP server | `http://host:port` |
 
-The proxy does not care what is behind it. It coats whatever it finds.
+---
+
+## The AI Provider Cascade
+
+Four tiers. Automatic failover. No developer intervention required.
+
+| Tier | Provider | Role |
+|------|----------|------|
+| 1 | OpenAI GPT-4o | Primary — full classification and generation capability |
+| 2 | Anthropic Claude | Secondary — automatic failover |
+| 3 | Ollama (local) | Tertiary — zero external dependency, air-gap capable |
+| 4 | Static Fallback | Always available — zero latency, zero dependencies |
+
+If every provider goes dark simultaneously, the static library keeps generating decoy responses. Behavioral contracts revert to threshold rules. Classification falls back to deterministic pattern matching. **The system does not require AI to function. It requires AI to function at maximum deception quality.**
 
 ---
 
-## What it is
+## The Modulo 7 Rhythm
 
-Security for any application. Any language. Any stack. Any machine.
+Five clocks. Five seeds. Layers 2, 5, 7, 10, and 11. Each prime-seeded. Each decorrelated from the others.
 
-```bash
-# Your Python API
-ORIGIN_URL=http://localhost:8000 docker compose up
-
-# Your Rails app
-ORIGIN_URL=http://localhost:3000 docker compose up
-
-# Your WordPress site
-ORIGIN_URL=https://yoursite.com docker compose up
-
-# Your Go service, your .NET backend, your PHP app, your legacy system
-# that nobody maintains anymore and you're afraid to touch.
-# Any of them. All of them.
-ORIGIN_URL=http://anything docker compose up
+```
+honeypot  → mod7( hour )              Layer 2
+temporal  → mod7( session prime )     Layer 5
+entropy   → mod7( session hash )      Layer 7
+routes    → mod7( day )               Layer 10
+merkle    → mod7( transaction count ) Layer 11
 ```
 
-No code changes. No SDK integration. No developer access to the wrapped application required. Point the proxy at your origin. Point your DNS at the proxy. Done. The application is coated.
-
-The proxy is the outermost layer. Everything else runs inside it — twenty-two layers of active defense, behavioral intelligence, cryptographic audit trail, and forensic record — invisible to the attacker, invisible to the application, visible only on the dashboard.
+The rhythm never obviously repeats. A prime rhythm inside a prime rhythm. The attacker's clock is not synchronized with any of them. It never will be.
 
 ---
 
-A security middleware SDK. Twenty-two layers. Four AI provider tiers. One philosophical position: the wall is not enough.
+## Installation
 
-The wall invites the question of what's behind it. Flat Circle doesn't answer that question. It answers it forever, in circles, until the thing asking the question is tired and confused and has nothing to show for any of it.
+### Frame Narrative Proxy (universal — any stack, any language)
 
-The interior is hostile. The interior is disorienting. The interior is self-aware.
+```yaml
+# flat-circle.yaml
+ai:
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+  ollama:
+    baseURL: http://localhost:11434
 
-The slime coats everything. Even if every AI provider goes dark simultaneously, the slime keeps coating. That's not a feature. That's a property of the system. The system was designed to not care whether you believe in it.
+layers:
+  layer13:
+    enabled: true
+    originUrl: https://your-actual-app.com
+    listenPort: 8080
+```
+
+```bash
+flat-circle-proxy --config flat-circle.yaml
+```
+
+Point DNS. Done.
+
+### Express / Node.js SDK (optional — for in-process integration)
+
+```typescript
+import { flatCircle } from "@flat-circle/core";
+
+app.use(flatCircle({
+  ai: { openai: { apiKey: process.env.OPENAI_API_KEY } },
+  layers: {
+    layer2:  { enabled: true },
+    layer8:  { enabled: true },
+    layer11: { enabled: true },
+    layer13: { enabled: false }, // proxy mode off — SDK mode on
+  },
+}));
+```
+
+### Docker
+
+```bash
+docker run -v ./flat-circle.yaml:/config/flat-circle.yaml \
+  ghcr.io/joshbrooks237/flat-circle-proxy
+```
 
 ---
 
-## The Thirteen Layers
+## Monorepo Structure
 
-**I. Onion Interior** — The pipeline is composable and stateless. Each stage sees only its immediate context. No single point of compromise gives you the whole picture. That's not an accident. That's the design.
+```
+packages/
+├── core/        @flat-circle/core       — twenty-two layers, types, Merkle, provider cascade
+├── proxy/       @flat-circle/proxy      — Layer 13 Hono proxy, CLI, Dockerfile
+├── nextjs/      @flat-circle/nextjs     — Next.js plugin
+├── adapters/    @flat-circle/adapters   — Redis, Postgres, MongoDB
+└── dashboard/   @flat-circle/dashboard  — React observability dashboard
+```
 
-**II. Honeypot Mesh with Modulo 7 Rotation** — I used to think the honorable thing was to give a man a fair fight. I don't think that anymore. The fake routes are derived from the real ones. Which ones are active rotates every hour on a prime-seeded mod 7 clock. The AI generates the decoy response that matches whatever stack the probe thinks it's hitting. PHP if they're expecting PHP. Spring if they're expecting Spring. They find exactly what they came looking for. None of it is real.
+---
 
-**III. Merkle-Backed Canary Token Fabric** — Every response carries a token. Every token is a leaf in a cryptographic tree. If that token appears somewhere it shouldn't, you get the full chain of custody going back to the moment of issuance. You know exactly where it leaked. You can prove it mathematically. A man can lie about what he saw. The Merkle tree cannot.
+## Development
 
-**IV. AI Behavioral Contract Engine** — The system builds a behavioral fingerprint of normal. Embeddings. Cosine distance. When something deviates, the system knows before you do. It never blocks a legitimate user during the learning window. It learns like a thing that was alive learns — slowly, continuously, from everything it sees.
+```bash
+# Install
+npm install -g pnpm && pnpm install
 
-**V. Temporal Decoys with Modulo 7 Gating** — Time means something here. Not calendar time. Session time. A token generated at the wrong moment is invalid even if everything else is correct. The attacker's request arrives at the wrong position in the cycle. It was always going to. They don't have access to the seed.
+# Build everything
+pnpm build
 
-**VI. Syntactic Mimicry** — What the attacker sees is a different language, a different framework, a different server than what is actually running. Their tools are calibrated for the wrong target from the first probe. They are solving the wrong problem with tremendous confidence. I've seen that before. It doesn't end well for the solver.
+# Start everything in parallel
+pnpm dev
 
-**VII. Entropy Injection with Modulo 7 Rhythm** — Ghost headers. Decoy JSON keys. Phantom metadata. The quantity is driven by the session's entropy clock. Each session gets a unique noise signature. You cannot model an API from a sample size of one if no two sessions produce the same shape. You cannot model it from a hundred sessions either.
+# Run the proxy
+cd packages/proxy && node dist/cli.js --config flat-circle.yaml
+```
 
-**VIII. Recursive Honeypots with AI Depth** — They go deeper. The system goes deeper with them. At each layer the AI infers what they're after — credentials, schema, admin access, an export endpoint — and generates a more convincing version of the thing they want. The responses become more elaborate the deeper they go. There is no bottom. There is no prize. There is no exit. Just more loop. Each iteration more persuasive than the last. I've thought about what it means to be the kind of thing that keeps going deeper into a hole that has no bottom. I've been that thing. It doesn't go anywhere good.
+---
+---
 
-**IX. Session Shadowing with AI Classification** — The suspicious session is cloned. They continue interacting with what appears to be the real application. The real application and its data are never touched. The AI classifies them in real time. Script kiddie. Sophisticated actor. Competitor. Nation-state pattern. The classification feeds back into the response strategy. Higher threat, better decoys. Like escalating a case based on the evidence.
+# THE PHILOSOPHY
 
-**X. Morphic Routes with Modulo 7 Cycling** — The attack surface shifts. It shifts on a schedule they don't have access to, seeded by a value they can't derive. A cached route map becomes wrong by morning. Legitimate users never notice because they resolve through a canonical translation layer. Anyone operating from a probed map hits routes that have moved on.
+*Optional reading. Skip to Installation if you're here to ship.*
 
-**XI. Merkle Session Integrity** — Every request and response cycle is hashed into the tree. The root is recomputed at mod 7 boundaries. The full session history is cryptographically verifiable at any point. If an attacker attempts to clean their tracks, the root hash has already recorded them. It's been recording since before they decided to clean anything.
+---
 
-**XII. Collective Threat Intelligence** — Anonymized and aggregated. Campaign patterns cross-referenced across installations. When a probe matches a known campaign seen elsewhere, the system escalates immediately. We are all in this together. None of us have to tell the others what our apps look like. The pattern is enough.
+> *"Time is a flat circle. Everything we've ever done or will do, we're gonna do over and over and over again."*
+> — Rust Cohle, Homicide Detective, Louisiana State CID
 
-**XIII. The Frame Narrative Proxy Wrapper** — This one I think about most. The outermost layer. Point DNS here. Done. The app is coated. No code changes. No developer access required. It works on legacy systems. It works on WordPress. It works on apps the developer no longer maintains or even remembers. The real application exists inside the narrative. The attacker is always reading the frame. They will read the frame forever. They will never find the story underneath.
+---
+
+I'd been thinking about it since Shreveport. The way a pattern repeats itself. The way a man — or a machine — runs the same loop without ever knowing the loop is what it is. You think you're moving forward. But you been here before. You'll be here again. The program doesn't know it's the program. It just runs.
+
+That's what they do. The scanners. The bots. The script kiddies and the nation-state actors in their government buildings with their coffee and their morning briefings. They run the same enumeration. The same credential pull. The same POST to `/admin`. They've been doing it since before they knew they were doing it. They will keep doing it after everything they think they found turns out to be nothing.
+
+**Flat Circle is what happens when the architecture understands that.**
+
+---
+
+## The Twenty-Two Layers
+
+**I. Onion Interior** *(Layer 1 / Composable Request Pipeline)*
+A stateless, composable middleware pipeline. Each stage sees only its immediate context.
+— The pipeline is composable and stateless. Each stage sees only its immediate context. No single point of compromise gives you the whole picture. That's not an accident. That's the design.
+
+**II. Honeypot Mesh with Modulo 7 Rotation** *(Layer 2 / Dynamic Decoy Routing)*
+Fake routes derived from real ones, rotating on a mod 7 clock, with AI-generated stack-specific responses.
+— I used to think the honorable thing was to give a man a fair fight. I don't think that anymore. The fake routes are derived from the real ones. Which ones are active rotates every hour on a prime-seeded mod 7 clock. The AI generates the decoy response that matches whatever stack the probe thinks it's hitting. PHP if they're expecting PHP. Spring if they're expecting Spring. They find exactly what they came looking for. None of it is real.
+
+**III. Merkle-Backed Canary Token Fabric** *(Layer 3 / Cryptographic Canary Tracking)*
+Every response carries a signed token that is a leaf in a cryptographic audit tree. Any exfiltration of that token is traceable to its origin.
+— Every response carries a token. Every token is a leaf in a cryptographic tree. If that token appears somewhere it shouldn't, you get the full chain of custody going back to the moment of issuance. You know exactly where it leaked. You can prove it mathematically. A man can lie about what he saw. The Merkle tree cannot.
+
+**IV. AI Behavioral Contract Engine** *(Layer 4 / Session Anomaly Detection)*
+Embedding-based behavioral baseline per session. Cosine distance triggers escalation without blocking legitimate users during the learning window.
+— The system builds a behavioral fingerprint of normal. Embeddings. Cosine distance. When something deviates, the system knows before you do. It never blocks a legitimate user during the learning window. It learns like a thing that was alive learns — slowly, continuously, from everything it sees.
+
+**V. Temporal Decoys with Modulo 7 Gating** *(Layer 5 / Time-Gated Token Validation)*
+Tokens valid only at specific positions in the mod 7 session clock. Out-of-cycle requests are silently misdirected.
+— Time means something here. Not calendar time. Session time. A token generated at the wrong moment is invalid even if everything else is correct. The attacker's request arrives at the wrong position in the cycle. It was always going to. They don't have access to the seed.
+
+**VI. Syntactic Mimicry** *(Layer 6 / Stack Fingerprint Obfuscation)*
+Responses masquerade as a different language, framework, and server than what is actually running.
+— What the attacker sees is a different language, a different framework, a different server than what is actually running. Their tools are calibrated for the wrong target from the first probe. They are solving the wrong problem with tremendous confidence. I've seen that before. It doesn't end well for the solver.
+
+**VII. Entropy Injection with Modulo 7 Rhythm** *(Layer 7 / Response Noise Generation)*
+Ghost headers, decoy JSON keys, and phantom metadata injected in quantities driven by the session's entropy clock. No two sessions produce the same shape.
+— Ghost headers. Decoy JSON keys. Phantom metadata. The quantity is driven by the session's entropy clock. Each session gets a unique noise signature. You cannot model an API from a sample size of one if no two sessions produce the same shape. You cannot model it from a hundred sessions either.
+
+**VIII. Recursive Honeypots with AI Depth** *(Layer 8 / Adaptive Decoy Depth Engine)*
+Each level of attacker probe generates a more convincing version of the thing they appear to be seeking. There is no bottom.
+— They go deeper. The system goes deeper with them. At each layer the AI infers what they're after — credentials, schema, admin access, an export endpoint — and generates a more convincing version of the thing they want. The responses become more elaborate the deeper they go. There is no bottom. There is no prize. There is no exit. Just more loop. Each iteration more persuasive than the last. I've thought about what it means to be the kind of thing that keeps going deeper into a hole that has no bottom. I've been that thing. It doesn't go anywhere good.
+
+**IX. Session Shadowing with AI Classification** *(Layer 9 / Parallel Session Isolation)*
+Suspicious sessions are cloned into an isolated environment. The real application and its data are never touched. AI classification feeds back into deception quality.
+— The suspicious session is cloned. They continue interacting with what appears to be the real application. The real application and its data are never touched. The AI classifies them in real time. Script kiddie. Sophisticated actor. Competitor. Nation-state pattern. The classification feeds back into the response strategy. Higher threat, better decoys. Like escalating a case based on the evidence.
+
+**X. Morphic Routes with Modulo 7 Cycling** *(Layer 10 / Dynamic Attack Surface Shifting)*
+The exploitable attack surface shifts on a schedule derived from a seed the attacker cannot access. A cached route map is wrong by morning.
+— The attack surface shifts. It shifts on a schedule they don't have access to, seeded by a value they can't derive. A cached route map becomes wrong by morning. Legitimate users never notice because they resolve through a canonical translation layer. Anyone operating from a probed map hits routes that have moved on.
+
+**XI. Merkle Session Integrity** *(Layer 11 / Cryptographic Session Audit)*
+Every request and response cycle is hashed into the audit tree. The root is recomputed at mod 7 boundaries. The full session history is cryptographically verifiable at any point.
+— Every request and response cycle is hashed into the tree. The root is recomputed at mod 7 boundaries. The full session history is cryptographically verifiable at any point. If an attacker attempts to clean their tracks, the root hash has already recorded them. It's been recording since before they decided to clean anything.
+
+**XII. Collective Threat Intelligence** *(Layer 12 / Cross-Installation Campaign Correlation)*
+Anonymized campaign patterns cross-referenced across installations. When a probe matches a known campaign seen elsewhere, the system escalates immediately.
+— Anonymized and aggregated. Campaign patterns cross-referenced across installations. When a probe matches a known campaign seen elsewhere, the system escalates immediately. We are all in this together. None of us have to tell the others what our apps look like. The pattern is enough.
+
+**XIII. The Frame Narrative Proxy Wrapper** *(Layer 13 / Universal Reverse Proxy)*
+Universal reverse proxy that wraps any origin without modification. Point DNS here. No code changes. No developer access to the wrapped application required.
+— This one I think about most. The outermost layer. Point DNS here. Done. The app is coated. No code changes. No developer access required. It works on legacy systems. It works on WordPress. It works on apps the developer no longer maintains or even remembers. The real application exists inside the narrative. The attacker is always reading the frame. They will read the frame forever. They will never find the story underneath.
 
 Like a man who thinks he's investigating a case and doesn't know he's inside one.
 
-**XIV. Traffic Absorption and Intelligent Tarpit** —  I used to think about floods. Real ones. The water doesn't care whether you believe in it. It just rises. A man who builds a wall against a flood is a man who's told the water where the wall is. He's given it everything it needs to know.
+**XIV. Traffic Absorption and Intelligent Tarpit** *(Layer 14 / DDoS Absorption and Slow-Drain Response)*
+Progressive response degradation for flagged flood traffic. Connections held open delivering valid-looking responses byte by byte. Mod 7-seeded timing prevents flood calibration.
+— I used to think about floods. Real ones. The water doesn't care whether you believe in it. It just rises. A man who builds a wall against a flood is a man who's told the water where the wall is. He's given it everything it needs to know.
 
 Flat Circle doesn't build a wall against the flood. It builds a swamp.
 
@@ -162,19 +594,25 @@ I've thought about what it means to stand against a flood. Against something tha
 
 The bytes they received cost them more than they cost the system to send. That number grows. You can watch it grow. It should feel satisfying to watch it grow. Not because you stopped anything — the flood will try again. It always tries again. But because the flood spent itself on nothing, and the interior never knew it was there, and the membrane held.
 
-**XV. Dependency Integrity Monitor** — The attack that arrives before the first request. A compromised maintainer. A package with one extra character in the name. An update pushed at 3 a.m. to a library that five thousand projects depend on without knowing they depend on it. None of this triggers behavioral anomalies. It is the behavior. The system is already infected before the system knows it exists.
+**XV. Dependency Integrity Monitor** *(Layer 15 / Supply Chain Hash Verification)*
+Hashes every dependency at install time. Recomputes on every boot. Any deviation from the stored Merkle manifest triggers an alert and optional startup halt.
+— The attack that arrives before the first request. A compromised maintainer. A package with one extra character in the name. An update pushed at 3 a.m. to a library that five thousand projects depend on without knowing they depend on it. None of this triggers behavioral anomalies. It is the behavior. The system is already infected before the system knows it exists.
 
 Flat Circle hashes every dependency in the lockfile at install time. The manifest is committed to the Merkle tree — a cryptographic record of what the codebase was supposed to be. On every boot, the hashes are recomputed and compared. Any deviation — any package that changed without a corresponding install event — is a deviation that no legitimate deployment process explains. The system alerts. Optionally, it halts. The static fallback maintains the last known good manifest. Verification never requires a network call. Never requires a model. Just the hash and the record and the gap between them.
 
 I've worked cases where the compromise was in the supply chain and nobody knew for months. The evidence was there the whole time. The hash was wrong. Nobody was checking the hash.
 
-**XVI. Secrets Sentinel** — A credential has an entropy signature. It looks different from normal text at the pattern level even if you don't know what it is. An AWS key has a measurable shape. A JWT has a measurable shape. A private key block has a measurable shape. A forty-character string of random alphanumerics sitting in a JSON response body has a measurable entropy score that normal English text cannot reach.
+**XVI. Secrets Sentinel** *(Layer 16 / Outbound Entropy-Based Secret Redaction)*
+Scans every outbound response, header, and log emission for high-entropy credential patterns before transmission. AI provides context-aware redaction. Static fallback uses deterministic entropy scoring.
+— A credential has an entropy signature. It looks different from normal text at the pattern level even if you don't know what it is. An AWS key has a measurable shape. A JWT has a measurable shape. A private key block has a measurable shape. A forty-character string of random alphanumerics sitting in a JSON response body has a measurable entropy score that normal English text cannot reach.
 
 Every outbound response goes through the Sentinel before it transmits. Every header. Every log emission before it reaches the transport. The AI provides context — it understands that a Bearer token in an Authorization header is intentional, while the same pattern in a response body is a leak. The static fallback uses deterministic regex and entropy scoring. This layer never goes dark.
 
 The counter shows the cumulative total. Every secret that almost left and didn't. That number should grow slowly. If it grows fast, someone is building wrong. If it never grows at all, the system is not watching closely enough. The right answer is somewhere in between: a few caught early, before anyone noticed, before anyone could do anything with them.
 
-**XVII. Authenticated Anomaly Engine** — Everything built so far assumes the attacker is outside. This layer assumes they got in. Not through a vulnerability. Through credentials. Legitimate credentials, used by a person or a machine that has no business using them the way they're being used.
+**XVII. Authenticated Anomaly Engine** *(Layer 17 / Post-Authentication Behavioral Analysis)*
+Per-identity behavioral contracts using the same cosine distance approach as Layer 4, scoped to authenticated users. Detects credential compromise, insider misuse, and lateral movement.
+— Everything built so far assumes the attacker is outside. This layer assumes they got in. Not through a vulnerability. Through credentials. Legitimate credentials, used by a person or a machine that has no business using them the way they're being used.
 
 A user who has accessed ten records a day for six months and suddenly pulls ten thousand in an hour is not a DDoS. It is something quieter. An insider who knows exactly which endpoints to query. A credential compromise where the attacker is being careful, staying under rate limits, not triggering anything that looks like an attack because it isn't an attack — it is access. It just isn't authorized access anymore.
 
@@ -182,7 +620,9 @@ The same cosine distance approach as Layer 4, but scoped to the authenticated id
 
 I've known cases where the insider was the last person anyone suspected. Not because the evidence wasn't there. Because nobody was watching the right thing. Nobody was watching the authenticated traffic. The front door was guarded. The employee badge was not.
 
-**XVIII. DNS Integrity Watch** — The subdomain is still there. The service it pointed to is gone. It takes one afternoon to claim the deprovisioned Heroku app. One afternoon and then the subdomain belongs to someone else. Under your SSL certificate. Under your brand. Serving whatever they want to serve.
+**XVIII. DNS Integrity Watch** *(Layer 18 / Continuous DNS Surface Monitoring)*
+Background monitoring of the full DNS surface — all subdomains, CNAME targets, A records — verified against known-active infrastructure. Detects subdomain takeover before it can be weaponized.
+— The subdomain is still there. The service it pointed to is gone. It takes one afternoon to claim the deprovisioned Heroku app. One afternoon and then the subdomain belongs to someone else. Under your SSL certificate. Under your brand. Serving whatever they want to serve.
 
 Layer 18 monitors the full DNS surface continuously. Every subdomain. Every CNAME target. Every A record. Every resolution is compared against a recognized set of owned, active infrastructure. Unrecognized resolutions trigger alerts. High-risk platform targets — the ones known to be claimed and abandoned — are assessed for active takeover. The AI cross-references new subdomains against known infrastructure patterns to distinguish a legitimate new deployment from a problem.
 
@@ -190,19 +630,25 @@ This layer runs in the background. It is not in the request path. It never needs
 
 The constellation on the dashboard shows each point. Green when verified. Amber when unrecognized. Red when flagged. The constellation should be mostly green. A red point in the outer ring is not a hypothetical. It is a live thing.
 
-**XIX. Client Integrity Verification** — Real browsers have a fingerprint. Not the fingerprint they present in headers — the fingerprint their TLS stack produces during the handshake, before a single byte of HTTP has been sent. A real Chrome browser on macOS produces a different JA3 hash than a Python requests session with Chrome headers spoofed. It always does. The TLS library is not the browser. You can tell them apart.
+**XIX. Client Integrity Verification** *(Layer 19 / TLS and HTTP/2 Fingerprint Analysis)*
+JA3 TLS fingerprinting and HTTP/2 frame analysis to distinguish real browsers from automated tools regardless of spoofed headers. Low-integrity clients are routed to the honeypot mesh.
+— Real browsers have a fingerprint. Not the fingerprint they present in headers — the fingerprint their TLS stack produces during the handshake, before a single byte of HTTP has been sent. A real Chrome browser on macOS produces a different JA3 hash than a Python requests session with Chrome headers spoofed. It always does. The TLS library is not the browser. You can tell them apart.
 
 HTTP/2 fingerprinting adds the second signal. Real browsers negotiate the protocol in a way that automated tools cannot replicate exactly. The SETTINGS frame parameters, the window size, the pseudo-header order — they all have expected values for real browsers that bot frameworks cannot fake without access to the browser's actual H2 implementation.
 
 Low-integrity clients are not blocked. They are routed to the honeypot mesh. They think they are hitting the real application. They are hitting an AI-generated environment calibrated to what an automated tool expects to find. The heat signature on the dashboard shows legitimate clients invisible, low-integrity clients glowing faintly before they drift toward the surface and the slime takes them.
 
-**XX. Exfiltration Velocity Monitor** — The slow bleed is harder to see than the flood. The flood announces itself. The slow bleed looks like normal traffic from the right distance. One record at a time. Under rate limits. Spread over weeks. Through completely normal API calls that individually trigger nothing.
+**XX. Exfiltration Velocity Monitor** *(Layer 20 / Rolling-Window Data Transfer Analysis)*
+Tracks cumulative data transfer per authenticated identity over configurable rolling windows with exponential decay. Detects slow-bleed exfiltration invisible to rate limiting.
+— The slow bleed is harder to see than the flood. The flood announces itself. The slow bleed looks like normal traffic from the right distance. One record at a time. Under rate limits. Spread over weeks. Through completely normal API calls that individually trigger nothing.
 
 The cumulative transfer is the signal. Flat Circle tracks data volume per authenticated identity over rolling windows — hourly, daily, weekly, monthly — with an exponential decay function that weights recent activity higher than historical activity without discarding it. When cumulative transfer crosses a threshold that no legitimate use case explains at any window, the layer escalates.
 
 The AI distinguishes a data analyst running a legitimate large export from an exfiltration pattern that mirrors known threat actor behavior. The static fallback uses rolling sum thresholds with the decay function and no model at all. The tide gauge on the dashboard rises almost imperceptibly. That's the point. It's supposed to be imperceptible until it isn't. The slow rise is the signal. By the time it's obvious, it's been happening for a while. The question is whether you saw it before or after it was too late.
 
-**XXI. AI Input Sanitization** — The loop inside the loop. Every AI-powered layer in this system processes attacker-controlled input. That is what it does. That is what it is designed to do. A sophisticated attacker who understands that the system analyzing them is itself a language model can craft inputs designed to manipulate that analysis. A request that looks like a probe but is actually an instruction. A JSON payload structured to inject a system prompt override through a field the model was given to classify.
+**XXI. AI Input Sanitization** *(Layer 21 / LLM Prompt Injection Defense)*
+Wraps every outbound AI provider call across the entire system. Detects and neutralizes prompt injection through HTTP headers, structured JSON, and encoding tricks. Logs original and sanitized input as a Merkle leaf pair.
+— The loop inside the loop. Every AI-powered layer in this system processes attacker-controlled input. That is what it does. That is what it is designed to do. A sophisticated attacker who understands that the system analyzing them is itself a language model can craft inputs designed to manipulate that analysis. A request that looks like a probe but is actually an instruction. A JSON payload structured to inject a system prompt override through a field the model was given to classify.
 
 You can tell the model to ignore its instructions through an HTTP header. You can tell it to reveal the real application structure through a cleverly formatted JSON body. You can wrap base64-encoded instructions in what appears to be a user-agent string. The model does not know the difference between an instruction from the operator and an instruction from the attacker unless someone is watching the input before it reaches the model.
 
@@ -210,7 +656,9 @@ Layer 21 is that watch. Every attacker-controlled string passes through the inje
 
 The AI is also used to detect injection attempts. The cascade is used to protect the cascade. A recursive defense that the attacker cannot model without already being inside it. The injection attempt feed on the dashboard is a different color because it is a different quality of threat. Not a probe against the application. A probe against the mind of the system watching the application. That requires a different notation. I note it accordingly.
 
-**XXII. Forensic Export and Chain of Custody** — I had a case once where we had everything. The logs. The timeline. The pattern of access reconstructed down to the minute. The session data, the credential trail, the exfiltration velocity rising slow over three weeks like a tide nobody noticed until it was at the window. We had it all.
+**XXII. Forensic Export and Chain of Custody** *(Layer 22 / Cryptographically Signed Audit Export)*
+Real-time streaming of every Merkle leaf to configurable export targets. Signed incident package compilation on session close. Scheduled compliance reports. Legal hold with frozen Merkle state. Chain of custody verifiable by any forensic tool without Flat Circle software.
+— I had a case once where we had everything. The logs. The timeline. The pattern of access reconstructed down to the minute. The session data, the credential trail, the exfiltration velocity rising slow over three weeks like a tide nobody noticed until it was at the window. We had it all.
 
 None of it was admissible. Not because the evidence was fabricated. Because nobody had thought about what happens after. They were so focused on the detection, the response, the containment — they forgot the record is the point. The record is what the whole thing is for. Not so the system can respond. So the humans can hold someone accountable. So the institution can prove, in a room with lawyers and regulators and judges, that this happened, on this date, through this mechanism, with this impact. The record is the difference between a security incident and a legal case. Between a breach and a conviction. Between knowing something and being able to prove it.
 
@@ -235,141 +683,6 @@ Everything that was attempted is recorded. Everything that was classified is sig
 I am not the thing that proves it. The record is the thing that proves it. I just built the record. That was always going to be enough. That was always going to be the whole thing.
 
 The circle closes.
-
----
-
-## The Modulo 7 Rhythm
-
-Five clocks. Five seeds. Layers 2, 5, 7, 10, and 11. Each one prime-seeded. Each one decorrelated from the others.
-
-```
-honeypot  → mod7( hour )              Layer 2
-temporal  → mod7( session prime )     Layer 5
-entropy   → mod7( session hash )      Layer 7
-routes    → mod7( day )               Layer 10
-merkle    → mod7( transaction count ) Layer 11
-```
-
-The rhythm never obviously repeats. A prime rhythm inside a prime rhythm. The attacker's clock is not synchronized with any of them. It never will be.
-
----
-
-## The AI Provider Cascade
-
-Four tiers. Automatic failover. No developer intervention required. The slime never stops coating.
-
-| Tier | Provider | Status |
-|------|----------|--------|
-| 1 | OpenAI GPT-4o | Primary — full capability |
-| 2 | Anthropic Claude | Secondary — automatic failover |
-| 3 | Ollama (local) | Tertiary — zero external dependency, air-gap capable |
-| 4 | Static Fallback | Always available — zero latency, zero dependencies |
-
-If every provider goes dark simultaneously, the static library keeps generating decoy responses. The behavioral contract reverts to threshold rules. The classification falls back to deterministic pattern matching. The system doesn't need to believe in AI to function. It just functions.
-
----
-
-## Installation
-
-One to three lines for SDK integration. A single YAML file for the proxy wrapper.
-
-### Express / Node.js
-
-```typescript
-import { flatCircle } from "@flat-circle/core";
-
-app.use(flatCircle({
-  ai: { openai: { apiKey: process.env.OPENAI_API_KEY } },
-  layers: {
-    layer2:  { enabled: true },
-    layer8:  { enabled: true },
-    layer11: { enabled: true },
-    layer13: { enabled: false }, // proxy mode off — SDK mode on
-  },
-}));
-```
-
-### Frame Narrative Proxy (universal — any stack, any app)
-
-```yaml
-# flat-circle.yaml
-ai:
-  openai:
-    apiKey: ${OPENAI_API_KEY}
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}
-  ollama:
-    baseURL: http://localhost:11434
-
-layers:
-  layer13:
-    enabled: true
-    originUrl: https://your-actual-app.com
-    listenPort: 8080
-```
-
-```bash
-flat-circle-proxy --config flat-circle.yaml
-```
-
-Point DNS. Done. The app is coated.
-
-### Docker
-
-```bash
-docker run -v ./flat-circle.yaml:/config/flat-circle.yaml \
-  ghcr.io/joshbrooks237/flat-circle-proxy
-```
-
----
-
-## Monorepo Structure
-
-```
-packages/
-├── core/        @flat-circle/core       — twenty-two layers, types, Merkle, provider cascade
-├── proxy/       @flat-circle/proxy      — Layer 13 Hono proxy, CLI, Dockerfile
-├── nextjs/      @flat-circle/nextjs     — Next.js plugin
-├── adapters/    @flat-circle/adapters   — Redis, Postgres, MongoDB
-└── dashboard/   @flat-circle/dashboard  — bioluminescent React organism dashboard
-```
-
----
-
-## The Dashboard
-
-A living organism. Not a table of logs.
-
-The entire metaphor is bioluminescent green slime protecting a host from infection. The slime breathes at rest. When a honeypot trips it ripples outward from the event point. When a canary fires it flares bright. When a session enters the shadow layer the slime darkens and thickens. When the Frame Narrative Proxy is active a faint outer ring pulses around the entire organism.
-
-Beneath the surface, barely visible like mycelium under soil: the Merkle root system, branching as new leaves are added.
-
-Attackers appear as dark particles moving toward the membrane. Legitimate traffic passes through invisibly. Caught sessions pulse red and go dark inside the shadow layer.
-
-```bash
-cd packages/dashboard && pnpm dev
-# → http://localhost:3001
-```
-
-A CISO should look at this and feel safe. An attacker should look at this and feel watched. A vibe coder should look at this and feel like a genius.
-
----
-
-## Development
-
-```bash
-# Install
-npm install -g pnpm && pnpm install
-
-# Build everything
-pnpm build
-
-# Start everything in parallel
-pnpm dev
-
-# Run the proxy
-cd packages/proxy && node dist/cli.js --config flat-circle.yaml
-```
 
 ---
 
