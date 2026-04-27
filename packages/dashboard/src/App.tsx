@@ -805,11 +805,11 @@ export default function App() {
             { label: "CANARIES", value: data.stats.canariesFired },
             { label: "MERKLE LEAVES", value: data.stats.merkleLeaves.toLocaleString() },
             { label: "SECRETS REDACTED", value: layer16.totalRedacted },
-          { label: "FORENSIC LEAVES", value: layer22.exportedLeafCount.toLocaleString() },
+            { label: "FORENSIC LEAVES", value: layer22.exportedLeafCount.toLocaleString() },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col items-end">
               <span style={{ color: "#00f07a", fontSize: "13px", fontWeight: 500 }}>{value}</span>
-              <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "8px", letterSpacing: "0.1em" }}>{label}</span>
+              <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "9px", letterSpacing: "0.08em" }}>{label}</span>
             </div>
           ))}
           <DependencyRootIndicator
@@ -954,7 +954,7 @@ export default function App() {
         {/* ── RIGHT: Event feed + panels (1/3 width) ── */}
         <div
           className="flex flex-col"
-          style={{ width: "360px", flexShrink: 0 }}
+          style={{ width: "420px", flexShrink: 0 }}
         >
           {/* AI Threat Feed */}
           <div
@@ -965,13 +965,13 @@ export default function App() {
               className="px-4 py-2 flex-shrink-0"
               style={{ borderBottom: "1px solid rgba(0,240,122,0.06)" }}
             >
-              <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "9px", letterSpacing: "0.15em" }}>
+              <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "10px", letterSpacing: "0.15em" }}>
                 AI THREAT FEED
               </span>
             </div>
             <div
               ref={feedRef}
-              className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-2"
+              className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3"
               style={{ scrollbarWidth: "thin", scrollbarColor: "#003820 #000" }}
             >
               {data.events.slice(0, 20).map((event, i) => (
@@ -981,28 +981,28 @@ export default function App() {
                   style={{
                     animation: i === 0 ? "scrollUp 0.3s ease-out forwards" : "none",
                     borderLeft: `2px solid ${eventColor(event.type)}`,
-                    paddingLeft: "8px",
+                    paddingLeft: "10px",
                   }}
                 >
                   <div className="flex items-center justify-between">
                     <span
                       style={{
                         color: eventColor(event.type),
-                        fontSize: "9px",
+                        fontSize: "10px",
                         letterSpacing: "0.1em",
                       }}
                     >
                       {event.type.toUpperCase()}
                     </span>
-                    <span style={{ color: "rgba(0,240,122,0.25)", fontSize: "8px" }}>
+                    <span style={{ color: "rgba(0,240,122,0.25)", fontSize: "9px" }}>
                       {formatAge(Date.now() - event.timestamp)}
                     </span>
                   </div>
-                  <p style={{ color: "rgba(0,240,122,0.7)", fontSize: "10px", lineHeight: "1.5", margin: 0 }}>
+                  <p style={{ color: "rgba(0,240,122,0.75)", fontSize: "11px", lineHeight: "1.55", margin: 0 }}>
                     {event.narration}
                   </p>
                   {event.depth !== undefined && event.depth > 0 && (
-                    <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "8px" }}>
+                    <span style={{ color: "rgba(0,240,122,0.3)", fontSize: "9px" }}>
                       DEPTH {event.depth} · {event.ip}
                     </span>
                   )}
@@ -1011,18 +1011,24 @@ export default function App() {
             </div>
           </div>
 
+          {/* ── Scrollable lower panels ── */}
+          <div
+            className="flex flex-col overflow-y-auto flex-shrink-0"
+            style={{ maxHeight: "55%", scrollbarWidth: "thin", scrollbarColor: "#003820 #000" }}
+          >
+
           {/* Attacker classification */}
-          <div style={{ borderBottom: "1px solid rgba(0,240,122,0.06)" }}>
+          <div style={{ borderBottom: "1px solid rgba(0,240,122,0.06)", flexShrink: 0 }}>
             <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(0,240,122,0.04)" }}>
-              <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "9px", letterSpacing: "0.15em" }}>
+              <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "10px", letterSpacing: "0.15em" }}>
                 ACTIVE THREATS
               </span>
             </div>
-            <div className="px-4 py-2 flex flex-col gap-1">
+            <div className="px-4 py-3 flex flex-col gap-2">
               {data.events.slice(0, 5).filter((e) => e.threatClass).map((e) => (
                 <div key={e.id} className="flex items-center justify-between">
-                  <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "9px" }}>{e.ip}</span>
-                  <span style={{ color: threatClassColor(e.threatClass), fontSize: "9px", letterSpacing: "0.05em" }}>
+                  <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "10px" }}>{e.ip}</span>
+                  <span style={{ color: threatClassColor(e.threatClass), fontSize: "10px", letterSpacing: "0.05em" }}>
                     {threatClassLabel(e.threatClass)}
                   </span>
                 </div>
@@ -1032,13 +1038,13 @@ export default function App() {
 
           {/* Shadow sessions */}
           {data.shadowSessions.length > 0 && (
-            <div style={{ borderBottom: "1px solid rgba(0,240,122,0.06)" }}>
+            <div style={{ borderBottom: "1px solid rgba(0,240,122,0.06)", flexShrink: 0 }}>
               <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(0,240,122,0.04)" }}>
-                <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                <span style={{ color: "rgba(0,240,122,0.5)", fontSize: "10px", letterSpacing: "0.15em" }}>
                   SHADOW SESSIONS
                 </span>
               </div>
-              <div className="px-4 py-2 flex flex-col gap-2">
+              <div className="px-4 py-3 flex flex-col gap-2">
                 {data.shadowSessions.slice(0, 2).map((s) => (
                   <ShadowBubble key={s.id} {...s} />
                 ))}
@@ -1050,18 +1056,18 @@ export default function App() {
           {layer17.flaggedIdentities.length > 0 && (
             <div style={{ borderBottom: "1px solid rgba(255,100,0,0.08)", flexShrink: 0 }}>
               <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(255,100,0,0.06)" }}>
-                <span style={{ color: "rgba(255,100,0,0.7)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                <span style={{ color: "rgba(255,100,0,0.7)", fontSize: "10px", letterSpacing: "0.15em" }}>
                   AUTHN ANOMALIES — {layer17.totalAnomalies}
                 </span>
               </div>
-              <div className="px-4 py-2 flex flex-col gap-1">
+              <div className="px-4 py-3 flex flex-col gap-2">
                 {layer17.flaggedIdentities.slice(0, 3).map((f) => (
                   <div key={f.id} className="flex items-center justify-between">
-                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px", fontFamily: "JetBrains Mono" }}>{f.identityId}</span>
-                    <span style={{ color: "#ff6600", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.05em" }}>
-                      {f.anomalyClass.toUpperCase().slice(0, 14)}
+                    <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", fontFamily: "JetBrains Mono" }}>{f.identityId}</span>
+                    <span style={{ color: "#ff6600", fontSize: "9px", fontFamily: "JetBrains Mono", letterSpacing: "0.05em" }}>
+                      {f.anomalyClass.toUpperCase().slice(0, 16)}
                     </span>
-                    <span style={{ color: "rgba(255,100,0,0.5)", fontSize: "8px", fontFamily: "JetBrains Mono" }}>
+                    <span style={{ color: "rgba(255,100,0,0.6)", fontSize: "9px", fontFamily: "JetBrains Mono" }}>
                       {(f.riskScore * 10).toFixed(1)}/10
                     </span>
                   </div>
@@ -1074,11 +1080,11 @@ export default function App() {
           {layer21.recentAttempts.length > 0 && (
             <div style={{ borderBottom: "1px solid rgba(170,68,255,0.08)", flexShrink: 0 }}>
               <div className="px-4 py-2" style={{ borderBottom: "1px solid rgba(170,68,255,0.06)" }}>
-                <span style={{ color: "rgba(170,68,255,0.7)", fontSize: "9px", letterSpacing: "0.15em" }}>
+                <span style={{ color: "rgba(170,68,255,0.7)", fontSize: "10px", letterSpacing: "0.15em" }}>
                   AI INJECTION — {layer21.totalAttempts}
                 </span>
               </div>
-              <div className="px-4 py-2 flex flex-col gap-2">
+              <div className="px-4 py-3 flex flex-col gap-2">
                 {layer21.recentAttempts.slice(0, 3).map((a) => (
                   <InjectionAttemptBadge key={a.id} pattern={a.pattern} timestamp={a.timestamp} />
                 ))}
@@ -1092,11 +1098,11 @@ export default function App() {
               className="px-4 py-2"
               style={{ borderBottom: "1px solid rgba(0,170,255,0.06)" }}
             >
-              <span style={{ color: "rgba(0,170,255,0.6)", fontSize: "9px", letterSpacing: "0.15em" }}>
+              <span style={{ color: "rgba(0,170,255,0.6)", fontSize: "10px", letterSpacing: "0.15em" }}>
                 FORENSIC EXPORT / L22
               </span>
             </div>
-            <div className="px-4 py-2 flex flex-col gap-2">
+            <div className="px-4 py-3 flex flex-col gap-3">
               <LegalHoldBadge
                 active={effectiveLegalHold.legalHoldActive}
                 since={effectiveLegalHold.legalHoldSince}
@@ -1118,32 +1124,27 @@ export default function App() {
               className="px-4 py-2 flex items-center justify-between"
               style={{ borderBottom: "1px solid rgba(255,136,0,0.06)" }}
             >
-              <span style={{ color: layer14.floodActive ? "rgba(255,136,0,0.8)" : "rgba(255,170,50,0.45)", fontSize: "9px", letterSpacing: "0.15em" }}>
+              <span style={{ color: layer14.floodActive ? "rgba(255,136,0,0.8)" : "rgba(255,170,50,0.45)", fontSize: "10px", letterSpacing: "0.15em" }}>
                 TARPIT / L14
               </span>
               {layer14.floodActive && (
-                <span style={{ color: "#ff8800", fontSize: "8px", letterSpacing: "0.1em", animation: "pulse 1.5s infinite" }}>
+                <span style={{ color: "#ff8800", fontSize: "9px", letterSpacing: "0.1em", animation: "pulse 1.5s infinite" }}>
                   FLOOD
                 </span>
               )}
             </div>
-            <div className="px-4 py-2 flex flex-col gap-2">
-              {/* Absorption meter */}
+            <div className="px-4 py-3 flex flex-col gap-2">
               <AbsorptionMeter pct={layer14.absorptionCapacityPct} floodActive={layer14.floodActive} />
-
-              {/* Upstream absorber */}
               <div className="flex items-center justify-between">
-                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>UPSTREAM</span>
+                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "9px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>UPSTREAM</span>
                 <UpstreamStatusBadge status={layer14.upstreamStatus} provider={layer14.upstreamProvider} />
               </div>
-
-              {/* Bytes wasted */}
               <div className="flex items-center justify-between">
-                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "8px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>BYTES WASTED</span>
+                <span style={{ color: "rgba(255,170,50,0.35)", fontSize: "9px", fontFamily: "JetBrains Mono", letterSpacing: "0.1em" }}>BYTES WASTED</span>
                 <span
                   style={{
                     color: "#ffaa33",
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontFamily: "JetBrains Mono",
                     textShadow: layer14.floodActive ? "0 0 8px rgba(255,170,50,0.5)" : "none",
                     transition: "text-shadow 0.5s",
@@ -1152,18 +1153,16 @@ export default function App() {
                   {layer14.bytesWasted.toLocaleString()}
                 </span>
               </div>
-
-              {/* Tarpit connections — slow-pulsing amber nodes */}
               {layer14.activeTarpitConnections.length > 0 && (
                 <div className="flex flex-col gap-1 mt-1">
-                  <span style={{ color: "rgba(255,170,50,0.3)", fontSize: "7px", letterSpacing: "0.12em", fontFamily: "JetBrains Mono" }}>
+                  <span style={{ color: "rgba(255,170,50,0.3)", fontSize: "8px", letterSpacing: "0.12em", fontFamily: "JetBrains Mono" }}>
                     ACTIVE CONNECTIONS — {layer14.activeTarpitConnections.length}
                   </span>
                   {layer14.activeTarpitConnections.slice(0, 4).map((n) => (
                     <TarpitNode key={n.id} node={n} />
                   ))}
                   {layer14.activeTarpitConnections.length > 4 && (
-                    <span style={{ color: "rgba(255,170,50,0.2)", fontSize: "8px", fontFamily: "JetBrains Mono", paddingLeft: "4px" }}>
+                    <span style={{ color: "rgba(255,170,50,0.2)", fontSize: "9px", fontFamily: "JetBrains Mono", paddingLeft: "4px" }}>
                       +{layer14.activeTarpitConnections.length - 4} more tarpitted
                     </span>
                   )}
@@ -1171,6 +1170,8 @@ export default function App() {
               )}
             </div>
           </div>
+
+          </div>{/* end scrollable lower panels */}
         </div>
       </div>
 
@@ -1179,7 +1180,7 @@ export default function App() {
         className="flex flex-shrink-0 items-stretch"
         style={{
           borderTop: "1px solid rgba(0,240,122,0.08)",
-          height: "120px",
+          height: "160px",
         }}
       >
         {/* Merkle root display */}
@@ -1225,11 +1226,18 @@ export default function App() {
         </div>
 
         {/* Layer status */}
-        <div className="flex-1 px-4 py-2 overflow-hidden">
-          <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "8px", letterSpacing: "0.15em" }}>
+        <div className="flex-1 px-4 py-2 flex flex-col min-w-0">
+          <span style={{ color: "rgba(0,240,122,0.35)", fontSize: "8px", letterSpacing: "0.15em", flexShrink: 0 }}>
             TWENTY-TWO LAYERS
           </span>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
+          <div
+            className="grid gap-x-3 gap-y-0.5 mt-2 overflow-y-auto flex-1"
+            style={{
+              gridTemplateColumns: "repeat(3, 1fr)",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#003820 #000",
+            }}
+          >
             {data.layers.map((l) => (
               <LayerBlob
                 key={l.id}
